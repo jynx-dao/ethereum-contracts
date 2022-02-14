@@ -6,95 +6,44 @@ import "./JYNX.sol";
 
 contract JynxPro_Bridge {
 
+  struct Withdrawal {
+    address destination;
+    uint256 amount;
+    address asset_address;
+  }
+
   struct Asset {
     uint256 withdraw_limit;
     bool enabled;
   }
 
-  struct Withdrawal {
-    address destination;
-    uint256 amount;
-    address asset_address;
-    uint256 requested_timestamp;
-    bool processed;
-  }
+  JYNX public jynx_token;
 
-  mapping(address => mapping(uint256 => Withdrawal)) public pending_withdrawals;
-  mapping(address => uint256) public pending_withdrawal_count;
+  mapping(address => uint256) public user_total_stake;
+  mapping(address => mapping(bytes32 => uint256)) public user_stake;
   mapping(address => Asset) public assets;
   mapping(address => bool) public signers;
   mapping(uint256 => bool) public used_nonces;
-  mapping(address => bool) public disable_bridge_users;
-  uint256 public disable_bridge_votes = 0;
-  JYNX public jynx_token;
-  bool public bridge_disabled = false;
-  uint8 public disable_bridge_threshold;
-  address public fallback_wallet;
-  uint256 signer_count = 0;
-  uint256 withdraw_delay;
+  uint256 public signer_count = 0;
 
   constructor(
-    address jynx_token_address,
-    uint8 _disable_bridge_threshold,
-    address _fallback_wallet,
-    uint256 _withdraw_delay
+    address jynx_token_address
   ) {
     jynx_token = JYNX(jynx_token_address);
-    disable_bridge_threshold = _disable_bridge_threshold;
-    fallback_wallet = _fallback_wallet;
-    withdraw_delay = _withdraw_delay;
-  }
-
-  // ----------------------------------------- //
-
-  /// @notice Toggle the disabled status of the bridge
-  function toggle_disabled() internal {
-    uint256 threshold = (disable_bridge_votes * 100) / jynx_token.totalSupply();
-    if(threshold > disable_bridge_threshold) {
-      bridge_disabled = true;
-    } else {
-      bridge_disabled = false;
-    }
-  }
-
-  /// @notice Vote to disable the bridge
-  function disable_bridge() public {
-    require(jynx_token.balanceOf(msg.sender) > 0, "You do not have any JYNX.");
-    require(bridge_disabled, "The bridge is already disabled.");
-    disable_bridge_users[msg.sender] = true;
-    disable_bridge_votes += jynx_token.balanceOf(msg.sender);
-    toggle_disabled();
-  }
-
-  /// @notice Vote to enable the bridge
-  function enable_bridge() public {
-    require(disable_bridge_users[msg.sender], "You have not disabled the bridge.");
-    disable_bridge_users[msg.sender] = false;
-    disable_bridge_votes -= jynx_token.balanceOf(msg.sender);
-    toggle_disabled();
-  }
-
-  /// @notice Fallback mechanism to drain the bridge
-  /// @param _address the fallback address
-  function drain_bridge(
-    address _address
-  ) public {
-    require(bridge_disabled, "Bridge can only be drained when disabled.");
-    uint256 balance = ERC20(_address).balanceOf(_address);
-    ERC20(_address).transferFrom(address(this), fallback_wallet, balance);
   }
 
   /// @notice Add a new signer to the bridge
   /// @param _signer the address of the signer
   /// @param _nonce prevent replay attacks
-  /// @param _signature signed message
+  /// @param _signatures signed message
   function add_signer(
     address _signer,
     uint256 _nonce,
-    bytes32 _signature
+    bytes memory _signatures
   ) public {
     require(!signers[_signer], "User is already a signer.");
-    require(verify_signautre(_signature, _nonce), "Signature invalid.");
+    bytes memory message = abi.encode(_signer, _nonce, "add_signer");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
     signers[_signer] = true;
     signer_count += 1;
   }
@@ -102,45 +51,66 @@ contract JynxPro_Bridge {
   /// @notice Remove an existing signer from the bridge
   /// @param _signer the address of the signer
   /// @param _nonce prevent replay attacks
-  /// @param _signature signed message
+  /// @param _signatures signed message
   function remove_signer(
     address _signer,
     uint256 _nonce,
-    bytes32 _signature
+    bytes memory _signatures
   ) public {
     require(signers[_signer], "User is not a signer.");
-    require(verify_signautre(_signature, _nonce), "Signature invalid.");
+    bytes memory message = abi.encode(_signer, _nonce, "remove_signer");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
     signers[_signer] = false;
     signer_count -= 1;
   }
 
-  // ----------------------------------------- //
-
-  /// @notice Verify a signature
-  /// @param _signature signed message
-  /// @param _nonce prevent replay attacks
-  function verify_signautre(
-    bytes32 _signature,
+  /// @notice Verifies signatures
+  /// @param _signatures the concatenated signature
+  /// @param _message the message that was signed
+  /// @param _nonce the one-time nonce used to prevent replay attacks
+  /// @return Returns true if signatures are valid
+  function verify_signatures(
+    bytes memory _signatures,
+    bytes memory _message,
     uint256 _nonce
-  ) internal returns(bool) {
-    require(!used_nonces[_nonce], "Nonce already used.");
-    // TODO - verify the signature
-    used_nonces[_nonce] = true;
-    return true;
+  ) public returns(bool) {
+      require(_signatures.length % 65 == 0, "bad signature length");
+      require(!used_nonces[_nonce], "nonce used");
+      uint8 count = 0;
+      bytes32 message_hash = keccak256(abi.encode(_message, msg.sender));
+      for(uint256 i = 32; i < _signatures.length + 32; i+= 65){
+          bytes32 r;
+          bytes32 s;
+          uint8 v;
+          assembly {
+              r := mload(add(_signatures, i))
+              s := mload(add(_signatures, add(i, 32)))
+              v := byte(0, mload(add(_signatures, add(i, 64))))
+          }
+          require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, "mallable sig error");
+          if (v < 27) v += 27;
+          address addr = ecrecover(message_hash, v, r, s);
+          if(signers[addr]){
+              count++;
+          }
+      }
+      used_nonces[_nonce] = true;
+      return count == signer_count;
   }
 
   /// @notice Adds an asset to the bridge
   /// @param _address the ERC20 token address
   /// @param _withdraw_limit instant withdrawal limit
   /// @param _nonce prevent replay attacks
-  /// @param _signature signed message
+  /// @param _signatures signed message
   function add_asset(
     address _address,
     uint256 _withdraw_limit,
     uint256 _nonce,
-    bytes32 _signature
+    bytes memory _signatures
   ) public {
-    require(verify_signautre(_signature, _nonce), "Signature invalid.");
+    bytes memory message = abi.encode(_address, _withdraw_limit, _nonce, "add_asset");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
     require(!assets[_address].enabled, "Asset already exists");
     assets[_address] = Asset(_withdraw_limit, true);
   }
@@ -148,26 +118,28 @@ contract JynxPro_Bridge {
   /// @notice Disables an asset on the bridge
   /// @param _address the ERC20 token address
   /// @param _nonce prevent replay attacks
-  /// @param _signature signed message
+  /// @param _signatures signed message
   function disable_asset(
     address _address,
     uint256 _nonce,
-    bytes32 _signature
+    bytes memory _signatures
   ) public {
-    require(verify_signautre(_signature, _nonce), "Signature invalid.");
+    bytes memory message = abi.encode(_address, _nonce, "disable_asset");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
     assets[_address].enabled = false;
   }
 
   /// @notice Enables an asset on the bridge
   /// @param _address the ERC20 token address
   /// @param _nonce prevent replay attacks
-  /// @param _signature signed message
+  /// @param _signatures signed message
   function enable_asset(
     address _address,
     uint256 _nonce,
-    bytes32 _signature
+    bytes memory _signatures
   ) public {
-    require(verify_signautre(_signature, _nonce), "Signature invalid.");
+    bytes memory message = abi.encode(_address, _nonce, "enable_asset");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
     assets[_address].enabled = true;
   }
 
@@ -182,41 +154,45 @@ contract JynxPro_Bridge {
     ERC20(_address).transferFrom(msg.sender, address(this), _amount);
   }
 
-  /// @notice Withdraw an asset from the bridge
-  /// @param _destination the destination address
-  /// @param _amount the withdrawal amount
-  /// @param _address the ERC20 token address
-  /// @param _nonce prevent replay attacks
-  /// @param _signature signed message
-  function withdraw_asset(
-    address _destination,
+  /// @notice Stake tokens
+  /// @param _amount the amount
+  /// @param _jynx_key the Jynx network key
+  function add_stake(
     uint256 _amount,
-    address _address,
-    uint256 _nonce,
-    bytes32 _signature
+    bytes32 _jynx_key
   ) public {
-    require(verify_signautre(_signature, _nonce), "Signature invalid.");
-    if(_amount > assets[_address].withdraw_limit) {
-      pending_withdrawals[msg.sender][pending_withdrawal_count[msg.sender]+1]
-        = Withdrawal(_destination, _amount, _address, block.timestamp, false);
-      // TODO - queue pending withdrawal
-    } else {
-      ERC20(_address).transferFrom(address(this), _destination, _amount);
-    }
+    user_stake[msg.sender][_jynx_key] += _amount;
+    user_total_stake[msg.sender] += _amount;
+    jynx_token.transferFrom(msg.sender, address(this), _amount);
   }
 
-  /// @notice Claim a pending withdrawal
-  /// @param id the ID of the withdrawal
-  function claim_pending_withdrawal(
-    uint256 id
+  /// @notice Unstake tokens
+  /// @param _amount the amount
+  /// @param _jynx_key the Jynx network key
+  function remove_stake(
+    uint256 _amount,
+    bytes32 _jynx_key
   ) public {
-    require(!pending_withdrawals[msg.sender][id].processed, "Already claimed.");
-    require(pending_withdrawals[msg.sender][id].requested_timestamp
-      + withdraw_delay < block.timestamp, "Cannot claim yet.");
-    address asset_address = pending_withdrawals[msg.sender][id].asset_address;
-    address destination = pending_withdrawals[msg.sender][id].destination;
-    uint256 amount = pending_withdrawals[msg.sender][id].amount;
-    ERC20(asset_address).transferFrom(address(this), destination, amount);
-    pending_withdrawals[msg.sender][id].processed = true;
+    require(user_stake[msg.sender][_jynx_key] >= _amount, "Not enough stake");
+    user_stake[msg.sender][_jynx_key] -= _amount;
+    user_total_stake[msg.sender] -= _amount;
+    jynx_token.transferFrom(address(this), msg.sender, _amount);
+  }
+
+  /// @notice Withdraw an asset from the bridge
+  /// @param _withdrawals batch of withdrawals
+  /// @param _nonce prevent replay attacks
+  /// @param _signatures signed message
+  function withdraw_assets(
+    Withdrawal[] memory _withdrawals,
+    uint256 _nonce,
+    bytes memory _signatures
+  ) public {
+    bytes memory message = abi.encode(_withdrawals, _nonce, "withdraw_assets");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
+    for(uint256 i=0; i<_withdrawals.length; i++) {
+      ERC20(_withdrawals[i].asset_address).transferFrom(address(this),
+        _withdrawals[i].destination, _withdrawals[i].amount);
+    }
   }
 }
