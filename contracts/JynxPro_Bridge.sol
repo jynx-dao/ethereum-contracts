@@ -6,6 +6,8 @@ import "./JYNX.sol";
 
 contract JynxPro_Bridge {
 
+  // TODO - need to add events
+
   struct Withdrawal {
     address destination;
     uint256 amount;
@@ -24,7 +26,10 @@ contract JynxPro_Bridge {
   mapping(address => Asset) public assets;
   mapping(address => bool) public signers;
   mapping(uint256 => bool) public used_nonces;
+  mapping(bytes32 => mapping(address => bool)) has_signed;
+  
   uint256 public signer_count = 0;
+  uint16 public signing_threshold = 670;
 
   constructor(
     address jynx_token_address
@@ -90,12 +95,12 @@ contract JynxPro_Bridge {
           require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, "mallable sig error");
           if (v < 27) v += 27;
           address addr = ecrecover(message_hash, v, r, s);
-          if(signers[addr]){
+          if(signers[addr] && !has_signed[message_hash][addr]){
               count++;
           }
       }
       used_nonces[_nonce] = true;
-      return count == signer_count;
+      return ((uint256(count) * 1000) / (uint256(signer_count))) > signing_threshold;
   }
 
   /// @notice Adds an asset to the bridge
