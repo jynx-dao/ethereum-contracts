@@ -6,8 +6,6 @@ import "./JYNX.sol";
 
 contract JynxPro_Bridge {
 
-  // TODO - need to add events
-
   event AddSigner(address signer, uint256 nonce);
   event RemoveSigner(address signer, uint256 nonce);
   event AddAsset(address asset, uint256 nonce);
@@ -42,6 +40,8 @@ contract JynxPro_Bridge {
   ) {
     jynx_token = JYNX(jynx_token_address);
     signing_threshold = _signing_threshold;
+    signers[msg.sender] = true;
+    signer_count++;
   }
 
   /// @notice Add a new signer to the bridge
