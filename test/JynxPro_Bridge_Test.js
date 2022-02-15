@@ -170,9 +170,36 @@ contract("JynxPro_Bridge", (accounts) => {
     });
   });
 
-  describe("disable_asset", async () => {});
-
-  describe("enable_asset", async () => {});
+  describe("remove_asset", async () => {
+    const test_remove_asset = async (signer) => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      const jynx_token = await JYNX.deployed();
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      let encoded_message = get_message_to_sign(
+        ["address"],
+        [jynx_token.address],
+        nonce,
+        "remove_asset",
+        accounts[0]
+      );
+      const encoded_hash = ethUtil.keccak256(encoded_message);
+      const signature = ethUtil.ecsign(encoded_hash, private_keys[signer]);
+      const sig_string = to_signature_string(signature);
+      await jynx_pro_bridge.remove_asset(jynx_token.address, nonce, sig_string, {from:accounts[0]});
+      const asset_valid = await jynx_pro_bridge.assets.call(jynx_token.address);
+      assert.equal(asset_valid, false);
+    }
+    it("should fail to remove asset with invalid signature", async () => {
+      try {
+        await test_remove_asset(accounts[1]);
+      } catch(e) {
+        assert.equal(e.reason, "Signature invalid");
+      }
+    });
+    it("should remove asset", async () => {
+      await test_remove_asset(accounts[0]);
+    });
+  });
 
   describe("deposit_asset", async () => {});
 

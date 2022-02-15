@@ -9,8 +9,7 @@ contract JynxPro_Bridge {
   event AddSigner(address signer, uint256 nonce);
   event RemoveSigner(address signer, uint256 nonce);
   event AddAsset(address asset, uint256 nonce);
-  event DisableAsset(address asset, uint256 nonce);
-  event EnableAsset(address asset, uint256 nonce);
+  event RemoveAsset(address asset, uint256 nonce);
   event DepositAsset(address user, address asset, uint256 amount);
   event WithdrawAsset(address user, address asset, uint256 amount, uint256 nonce);
   event AddStake(address user, uint256 amount, bytes32 jynx_key);
@@ -98,30 +97,15 @@ contract JynxPro_Bridge {
   /// @param _address the ERC20 token address
   /// @param _nonce prevent replay attacks
   /// @param _signatures signed message
-  function disable_asset(
+  function remove_asset(
     address _address,
     uint256 _nonce,
     bytes memory _signatures
   ) public {
-    bytes memory message = abi.encode(_address, _nonce, "disable_asset");
+    bytes memory message = abi.encode(_address, _nonce, "remove_asset");
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     assets[_address] = false;
-    DisableAsset(_address, _nonce);
-  }
-
-  /// @notice Enables an asset on the bridge
-  /// @param _address the ERC20 token address
-  /// @param _nonce prevent replay attacks
-  /// @param _signatures signed message
-  function enable_asset(
-    address _address,
-    uint256 _nonce,
-    bytes memory _signatures
-  ) public {
-    bytes memory message = abi.encode(_address, _nonce, "enable_asset");
-    require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
-    assets[_address] = true;
-    EnableAsset(_address, _nonce);
+    RemoveAsset(_address, _nonce);
   }
 
   /// @notice Deposit asset to the bridge
