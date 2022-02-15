@@ -57,7 +57,7 @@ contract JynxPro_Bridge {
     bytes memory message = abi.encode(_signer, _nonce, "add_signer");
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
     signers[_signer] = true;
-    signer_count += 1;
+    signer_count++;
     AddSigner(_signer, _nonce);
   }
 
@@ -74,7 +74,7 @@ contract JynxPro_Bridge {
     bytes memory message = abi.encode(_signer, _nonce, "remove_signer");
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
     signers[_signer] = false;
-    signer_count -= 1;
+    signer_count--;
     RemoveSigner(_signer, _nonce);
   }
 
