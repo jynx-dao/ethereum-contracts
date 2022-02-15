@@ -56,7 +56,7 @@ contract("JynxPro_Bridge", (accounts) => {
       const signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
       const sig_string = to_signature_string(signature);
       await jynx_pro_bridge.add_signer(signer, nonce, sig_string, {from:accounts[0]});
-      const signer_count = await jynx_pro_bridge.signer_count();
+      const signer_count = await jynx_pro_bridge.signer_count.call();
       const signers0 = await jynx_pro_bridge.signers.call(accounts[0]);
       const signers1 = await jynx_pro_bridge.signers.call(accounts[1]);
       assert.equal(signer_count, 2);
@@ -82,7 +82,52 @@ contract("JynxPro_Bridge", (accounts) => {
     });
   });
 
-  describe("remove_signer", async () => {});
+  describe("remove_signer", async () => {
+    const test_remove_signer = async (signer, valid_sig) => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      let encoded_message = get_message_to_sign(
+        ["address"],
+        [signer],
+        nonce,
+        "remove_signer",
+        accounts[0]
+      );
+      const encoded_hash = ethUtil.keccak256(encoded_message);
+      const signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
+      let sig_string = to_signature_string(signature);
+      if(valid_sig) {
+        const signature2 = ethUtil.ecsign(encoded_hash, private_keys[accounts[1]]);
+        sig_string += to_signature_string(signature2).substr(2);
+      }
+      await jynx_pro_bridge.remove_signer(signer, nonce, sig_string, {from:accounts[0]});
+      const signer_count = await jynx_pro_bridge.signer_count.call();
+      const signers0 = await jynx_pro_bridge.signers.call(accounts[0]);
+      const signers1 = await jynx_pro_bridge.signers.call(accounts[1]);
+      assert.equal(signer_count, 1);
+      assert.equal(signers0, true);
+      assert.equal(signers1, false);
+    }
+    it("should fail to remove signer when user is not registered", async () => {
+      try {
+        await test_remove_signer(accounts[2]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "User is not a signer");
+      }
+    });
+    it("should fail to remove signer with invalid signature", async () => {
+      try {
+        await test_remove_signer(accounts[1]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "Signature invalid");
+      }
+    });
+    it("should fail to remove signer with invalid signature", async () => {
+      await test_remove_signer(accounts[1], true);
+    });
+  });
 
   describe("add_asset", async () => {});
 
