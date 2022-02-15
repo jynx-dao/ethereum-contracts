@@ -1,4 +1,5 @@
 const JynxPro_Bridge = artifacts.require("JynxPro_Bridge");
+const JYNX = artifacts.require("JYNX");
 
 const abi = require('ethereumjs-abi');
 const crypto = require("crypto");
@@ -129,7 +130,45 @@ contract("JynxPro_Bridge", (accounts) => {
     });
   });
 
-  describe("add_asset", async () => {});
+  describe("add_asset", async () => {
+    const test_add_asset = async (signer) => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      const jynx_token = await JYNX.deployed();
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      let encoded_message = get_message_to_sign(
+        ["address"],
+        [jynx_token.address],
+        nonce,
+        "add_asset",
+        accounts[0]
+      );
+      const encoded_hash = ethUtil.keccak256(encoded_message);
+      const signature = ethUtil.ecsign(encoded_hash, private_keys[signer]);
+      const sig_string = to_signature_string(signature);
+      await jynx_pro_bridge.add_asset(jynx_token.address, nonce, sig_string, {from:accounts[0]});
+      const asset_valid = await jynx_pro_bridge.assets.call(jynx_token.address);
+      assert.equal(asset_valid, true);
+    }
+    it("should fail to add asset with invalid signature", async () => {
+      try {
+        await test_add_asset(accounts[1]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "Signature invalid");
+      }
+    });
+    it("should add asset", async () => {
+      await test_add_asset(accounts[0]);
+    });
+    it("should fail to add asset when already exists", async () => {
+      try {
+        await test_add_asset(accounts[0]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "Asset already exists");
+      }
+    });
+  });
 
   describe("disable_asset", async () => {});
 
