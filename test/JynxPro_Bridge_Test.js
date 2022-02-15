@@ -38,26 +38,64 @@ function to_signature_string(sig){
 }
 
 contract("JynxPro_Bridge", (accounts) => {
-  it("should add signer", async () => {
-    const jynx_pro_bridge = await JynxPro_Bridge.deployed();
-    const nonce = new ethUtil.BN(crypto.randomBytes(32));
-    const signer = accounts[1];
-    let encoded_message = get_message_to_sign(
-      ["address"],
-      [signer],
-      nonce,
-      "add_signer",
-      accounts[0]
-    );
-    const encoded_hash = ethUtil.keccak256(encoded_message);
-    const signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
-    const sig_string = to_signature_string(signature);
-    await jynx_pro_bridge.add_signer(signer, nonce, sig_string, {from:accounts[0]});
-    const signer_count = await jynx_pro_bridge.signer_count();
-    const signers0 = await jynx_pro_bridge.signers.call(accounts[0]);
-    const signers1 = await jynx_pro_bridge.signers.call(accounts[1]);
-    assert.equal(signer_count, 2);
-    assert.equal(signers0, true);
-    assert.equal(signers1, true);
+
+  describe("verify_signatures", async () => {});
+
+  describe("add_signer", async () => {
+    const test_add_signer = async (signer) => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      let encoded_message = get_message_to_sign(
+        ["address"],
+        [signer],
+        nonce,
+        "add_signer",
+        accounts[0]
+      );
+      const encoded_hash = ethUtil.keccak256(encoded_message);
+      const signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
+      const sig_string = to_signature_string(signature);
+      await jynx_pro_bridge.add_signer(signer, nonce, sig_string, {from:accounts[0]});
+      const signer_count = await jynx_pro_bridge.signer_count();
+      const signers0 = await jynx_pro_bridge.signers.call(accounts[0]);
+      const signers1 = await jynx_pro_bridge.signers.call(accounts[1]);
+      assert.equal(signer_count, 2);
+      assert.equal(signers0, true);
+      assert.equal(signers1, true);
+    }
+    it("should add signer", async () => {
+      await test_add_signer(accounts[1]);
+    });
+    it("should fail to add signer when already registered", async () => {
+      try {
+        await test_add_signer(accounts[1]);
+      } catch(e) {
+        assert.equal(e.reason, "User is already a signer");
+      }
+    });
+    it("should fail to add signer with invalid signature", async () => {
+      try {
+        await test_add_signer(accounts[2]);
+      } catch(e) {
+        assert.equal(e.reason, "Signature invalid");
+      }
+    });
   });
+
+  describe("remove_signer", async () => {});
+
+  describe("add_asset", async () => {});
+
+  describe("disable_asset", async () => {});
+
+  describe("enable_asset", async () => {});
+
+  describe("deposit_asset", async () => {});
+
+  describe("withdraw_assets", async () => {});
+
+  describe("add_stake", async () => {});
+
+  describe("remove_stake", async () => {});
+
 });

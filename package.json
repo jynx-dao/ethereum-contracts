@@ -1,9 +1,14 @@
 {
   "dependencies": {
     "ethereumjs-abi": "^0.6.8",
-    "ethereumjs-util": "^7.1.4"
+    "ethereumjs-util": "^7.1.4",
+    "global": "^4.4.0",
+    "truffle": "^5.4.33"
   },
   "scripts": {
     "test": "./scripts/ganache.sh && sleep 3 && truffle test"
+  },
+  "devDependencies": {
+    "solidity-coverage": "^0.7.20"
   }
 }

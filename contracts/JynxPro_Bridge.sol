@@ -53,9 +53,9 @@ contract JynxPro_Bridge {
     uint256 _nonce,
     bytes memory _signatures
   ) public {
-    require(!signers[_signer], "User is already a signer.");
+    require(!signers[_signer], "User is already a signer");
     bytes memory message = abi.encode(_signer, _nonce, "add_signer");
-    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     signers[_signer] = true;
     signer_count++;
     AddSigner(_signer, _nonce);
@@ -70,9 +70,9 @@ contract JynxPro_Bridge {
     uint256 _nonce,
     bytes memory _signatures
   ) public {
-    require(signers[_signer], "User is not a signer.");
+    require(signers[_signer], "User is not a signer");
     bytes memory message = abi.encode(_signer, _nonce, "remove_signer");
-    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     signers[_signer] = false;
     signer_count--;
     RemoveSigner(_signer, _nonce);
@@ -88,7 +88,7 @@ contract JynxPro_Bridge {
     bytes memory _signatures
   ) public {
     bytes memory message = abi.encode(_address, _nonce, "add_asset");
-    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     require(!assets[_address], "Asset already exists");
     assets[_address] = true;
     AddAsset(_address, _nonce);
@@ -104,7 +104,7 @@ contract JynxPro_Bridge {
     bytes memory _signatures
   ) public {
     bytes memory message = abi.encode(_address, _nonce, "disable_asset");
-    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     assets[_address] = false;
     DisableAsset(_address, _nonce);
   }
@@ -119,7 +119,7 @@ contract JynxPro_Bridge {
     bytes memory _signatures
   ) public {
     bytes memory message = abi.encode(_address, _nonce, "enable_asset");
-    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     assets[_address] = true;
     EnableAsset(_address, _nonce);
   }
@@ -131,7 +131,7 @@ contract JynxPro_Bridge {
     address _address,
     uint256 _amount
   ) public {
-    require(assets[_address], "Deposits not enabled for this asset.");
+    require(assets[_address], "Deposits not enabled for this asset");
     ERC20(_address).transferFrom(msg.sender, address(this), _amount);
     DepositAsset(msg.sender, _address, _amount);
   }
@@ -146,7 +146,7 @@ contract JynxPro_Bridge {
     bytes memory _signatures
   ) public {
     bytes memory message = abi.encode(_withdrawals, _nonce, "withdraw_assets");
-    require(verify_signatures(_signatures, message, _nonce), "Signature invalid.");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     for(uint256 i=0; i<_withdrawals.length; i++) {
       ERC20(_withdrawals[i].asset_address).transferFrom(address(this),
         _withdrawals[i].destination, _withdrawals[i].amount);
