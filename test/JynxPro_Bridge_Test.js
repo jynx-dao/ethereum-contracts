@@ -131,13 +131,13 @@ contract("JynxPro_Bridge", (accounts) => {
   });
 
   describe("add_asset", async () => {
-    const test_add_asset = async (signer) => {
+    const jynx_token = await JYNX.deployed();
+    const test_add_asset = async (signer, asset) => {
       const jynx_pro_bridge = await JynxPro_Bridge.deployed();
-      const jynx_token = await JYNX.deployed();
       const nonce = new ethUtil.BN(crypto.randomBytes(32));
       let encoded_message = get_message_to_sign(
         ["address"],
-        [jynx_token.address],
+        [asset],
         nonce,
         "add_asset",
         accounts[0]
@@ -145,24 +145,25 @@ contract("JynxPro_Bridge", (accounts) => {
       const encoded_hash = ethUtil.keccak256(encoded_message);
       const signature = ethUtil.ecsign(encoded_hash, private_keys[signer]);
       const sig_string = to_signature_string(signature);
-      await jynx_pro_bridge.add_asset(jynx_token.address, nonce, sig_string, {from:accounts[0]});
-      const asset_valid = await jynx_pro_bridge.assets.call(jynx_token.address);
+      await jynx_pro_bridge.add_asset(asset, nonce, sig_string, {from:accounts[0]});
+      const asset_valid = await jynx_pro_bridge.assets.call(asset);
       assert.equal(asset_valid, true);
     }
     it("should fail to add asset with invalid signature", async () => {
       try {
-        await test_add_asset(accounts[1]);
+        await test_add_asset(accounts[1], jynx_token.address);
         assert.fail();
       } catch(e) {
         assert.equal(e.reason, "Signature invalid");
       }
     });
     it("should add asset", async () => {
-      await test_add_asset(accounts[0]);
+      await test_add_asset(accounts[0], jynx_token.address);
+      await test_add_asset(accounts[0], accounts[9]);
     });
     it("should fail to add asset when already exists", async () => {
       try {
-        await test_add_asset(accounts[0]);
+        await test_add_asset(accounts[0], jynx_token.address);
         assert.fail();
       } catch(e) {
         assert.equal(e.reason, "Asset already exists");
@@ -177,7 +178,7 @@ contract("JynxPro_Bridge", (accounts) => {
       const nonce = new ethUtil.BN(crypto.randomBytes(32));
       let encoded_message = get_message_to_sign(
         ["address"],
-        [jynx_token.address],
+        [accounts[9]],
         nonce,
         "remove_asset",
         accounts[0]
@@ -185,8 +186,8 @@ contract("JynxPro_Bridge", (accounts) => {
       const encoded_hash = ethUtil.keccak256(encoded_message);
       const signature = ethUtil.ecsign(encoded_hash, private_keys[signer]);
       const sig_string = to_signature_string(signature);
-      await jynx_pro_bridge.remove_asset(jynx_token.address, nonce, sig_string, {from:accounts[0]});
-      const asset_valid = await jynx_pro_bridge.assets.call(jynx_token.address);
+      await jynx_pro_bridge.remove_asset(accounts[9], nonce, sig_string, {from:accounts[0]});
+      const asset_valid = await jynx_pro_bridge.assets.call(accounts[9]);
       assert.equal(asset_valid, false);
     }
     it("should fail to remove asset with invalid signature", async () => {
@@ -201,7 +202,9 @@ contract("JynxPro_Bridge", (accounts) => {
     });
   });
 
-  describe("deposit_asset", async () => {});
+  describe("deposit_asset", async () => {
+
+  });
 
   describe("withdraw_assets", async () => {});
 
