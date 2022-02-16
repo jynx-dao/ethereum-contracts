@@ -298,7 +298,6 @@ contract("JynxPro_Bridge", (accounts) => {
       const jynx_pro_bridge = await JynxPro_Bridge.deployed();
       const jynx_token = await JYNX.deployed();
       if(asset === jynx_token.address) {
-        await jynx_token.issue(accounts[0], web3.utils.toWei("100000"));
         await jynx_token.approve(jynx_pro_bridge.address, web3.utils.toWei("100000"));
         const asset_valid = await jynx_pro_bridge.assets.call(jynx_token.address);
         assert.equal(asset_valid, true);
@@ -395,6 +394,8 @@ contract("JynxPro_Bridge", (accounts) => {
     it("should remove stake", async () => {
       await test_remove_stake(web3.utils.toWei("1000"));
     });
-  });
+   });
+
+   describe("claim_network_tokens", async () => {});
 
 });
