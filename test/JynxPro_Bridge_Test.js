@@ -85,15 +85,46 @@ contract("JynxPro_Bridge", (accounts) => {
       }
     });
     it("should fail to verify with duplicate signatures", async () => {
-      /**
-      * TODO:
-      * 1) add 2nd signer
-      * 2) try to verify sig by signing twice with signer #1
-      * 3) verify that it fails
-      * 4) sign properly with both signers
-      * 5) verify successful
-      * 6) remove the 2nd signer
-      **/
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      // BEGIN: Add signer
+      let nonce = new ethUtil.BN(crypto.randomBytes(32));
+      let encoded_message = get_message_to_sign(
+        ["address"],
+        [accounts[1]],
+        nonce,
+        "add_signer",
+        accounts[0]
+      );
+      let encoded_hash = ethUtil.keccak256(encoded_message);
+      let signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
+      let sig_string = to_signature_string(signature);
+      await jynx_pro_bridge.add_signer(accounts[1], nonce, sig_string, {from:accounts[0]});
+      // END: Add signer
+      // BEGIN: Verify cannot duplicate sign
+      encoded_message =  crypto.randomBytes(32);
+      nonce = new ethUtil.BN(crypto.randomBytes(32));
+      encoded_hash = ethUtil.keccak256(abi.rawEncode(["bytes", "address"],[encoded_message, accounts[0]]));
+      signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
+      signature2 = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
+      sig_string = to_signature_string(signature) + to_signature_string(signature2).substr(2);
+      const result = await jynx_pro_bridge.verify_signatures.call(sig_string, encoded_message, nonce, {from:accounts[0]});
+      assert.equal(false, result);
+      // END: Verify cannot duplicate sign
+      // BEGIN: Remove signer
+      nonce = new ethUtil.BN(crypto.randomBytes(32));
+      encoded_message = get_message_to_sign(
+        ["address"],
+        [accounts[1]],
+        nonce,
+        "remove_signer",
+        accounts[0]
+      );
+      encoded_hash = ethUtil.keccak256(encoded_message);
+      signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
+      signature2 = ethUtil.ecsign(encoded_hash, private_keys[accounts[1]]);
+      sig_string = to_signature_string(signature) + to_signature_string(signature2).substr(2);
+      await jynx_pro_bridge.remove_signer(accounts[1], nonce, sig_string, {from:accounts[0]});
+
     });
   });
 
