@@ -40,7 +40,62 @@ function to_signature_string(sig){
 
 contract("JynxPro_Bridge", (accounts) => {
 
-  describe("verify_signatures", async () => {});
+  describe("verify_signatures", async () => {
+    const test_verify_signatures = async (signer, result, nonce, send_tx, bad_sig) => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      let encoded_message =  crypto.randomBytes(32);
+      let encoded_hash = ethUtil.keccak256(abi.rawEncode(["bytes", "address"],[encoded_message, accounts[0]]));
+      let signature = ethUtil.ecsign(encoded_hash, private_keys[signer]);
+      let sig_string = to_signature_string(signature);
+      if(send_tx) {
+        if(bad_sig) {
+          sig_string = sig_string.substring(0, sig_string.length-2);
+        }
+        await jynx_pro_bridge.verify_signatures(sig_string, encoded_message, nonce, {from:accounts[0]});
+      } else{
+        const valid = await jynx_pro_bridge.verify_signatures.call(sig_string, encoded_message, nonce, {from:accounts[0]});
+        assert.equal(valid, result);
+      }
+    };
+    it("should verify valid signature", async () => {
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      await test_verify_signatures(accounts[0], true, nonce);
+    });
+    it("should verify invalid signature", async () => {
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      await test_verify_signatures(accounts[1], false, nonce);
+    });
+    it("should fail to verify signature with duplicated nonce", async () => {
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      await test_verify_signatures(accounts[0], true, nonce, true);
+      try {
+        await test_verify_signatures(accounts[0], true, nonce, true);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "nonce used");
+      }
+    });
+    it("should fail to verify signature with bag signature length", async () => {
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      try {
+        await test_verify_signatures(accounts[0], true, nonce, true, true);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "bad signature length");
+      }
+    });
+    it("should fail to verify with duplicate signatures", async () => {
+      /**
+      * TODO:
+      * 1) add 2nd signer
+      * 2) try to verify sig by signing twice with signer #1
+      * 3) verify that it fails
+      * 4) sign properly with both signers
+      * 5) verify successful
+      * 6) remove the 2nd signer
+      **/
+    });
+  });
 
   describe("add_signer", async () => {
     const test_add_signer = async (signer) => {

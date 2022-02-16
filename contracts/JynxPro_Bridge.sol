@@ -191,6 +191,7 @@ contract JynxPro_Bridge {
       if (v < 27) v += 27;
       address addr = ecrecover(message_hash, v, r, s);
       if(signers[addr] && !has_signed[message_hash][addr]){
+        has_signed[message_hash][addr] = true;
         count++;
       }
     }
