@@ -3,6 +3,7 @@ pragma solidity >=0.8.1;
 
 import "./lib/ERC20.sol";
 import "./JYNX.sol";
+import "./JYNX_Distribution.sol";
 
 contract JynxPro_Bridge {
 
@@ -15,6 +16,7 @@ contract JynxPro_Bridge {
   event AddStake(address user, uint256 amount, bytes32 jynx_key);
   event RemoveStake(address user, uint256 amount, bytes32 jynx_key);
 
+  JYNX_Distribution public jynx_distribution;
   JYNX public jynx_token;
 
   mapping(address => uint256) public user_total_stake;
@@ -29,12 +31,15 @@ contract JynxPro_Bridge {
 
   /// @notice Deploy the bridge
   /// @param jynx_token_address the JYNX token address
+  /// @param jynx_distribution_address the address of the JYNX distribution contract
   /// @param _signing_threshold signature threshold
   constructor(
     address jynx_token_address,
+    address jynx_distribution_address,
     uint16 _signing_threshold
   ) {
     jynx_token = JYNX(jynx_token_address);
+    jynx_distribution = JYNX_Distribution(jynx_distribution_address);
     signing_threshold = _signing_threshold;
     signers[msg.sender] = true;
     signer_count++;
@@ -165,6 +170,18 @@ contract JynxPro_Bridge {
     user_total_stake[msg.sender] -= _amount;
     jynx_token.transfer(msg.sender, _amount);
     RemoveStake(msg.sender, _amount, _jynx_key);
+  }
+
+  /// @notice Claim network tokens from distribution contract
+  /// @param _nonce prevent replay attacks
+  /// @param _signatures signed message
+  function claim_network_tokens(
+    uint256 _nonce,
+    bytes memory _signatures
+  ) public {
+    bytes memory message = abi.encode(_nonce, "claim_network_tokens");
+    require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
+    jynx_distribution.claim_network_tokens();
   }
 
   /// @notice Verifies signatures
