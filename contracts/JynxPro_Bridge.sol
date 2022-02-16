@@ -27,6 +27,9 @@ contract JynxPro_Bridge {
   uint256 public signer_count = 0;
   uint16 public signing_threshold;
 
+  /// @notice Deploy the bridge
+  /// @param jynx_token_address the JYNX token address
+  /// @param _signing_threshold signature threshold
   constructor(
     address jynx_token_address,
     uint16 _signing_threshold

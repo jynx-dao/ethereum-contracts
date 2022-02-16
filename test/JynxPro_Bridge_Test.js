@@ -124,7 +124,7 @@ contract("JynxPro_Bridge", (accounts) => {
       signature2 = ethUtil.ecsign(encoded_hash, private_keys[accounts[1]]);
       sig_string = to_signature_string(signature) + to_signature_string(signature2).substr(2);
       await jynx_pro_bridge.remove_signer(accounts[1], nonce, sig_string, {from:accounts[0]});
-
+      // END: Remove signer
     });
   });
 
