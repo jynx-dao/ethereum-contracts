@@ -22,7 +22,7 @@ contract JYNX_Distribution is Ownable {
   mapping(uint8 => mapping(address => uint256)) public claimed_tokens;
   mapping(uint8 => mapping(address => uint256)) public user_allocations;
   mapping(uint8 => Distribution) public distribution_events;
-  uint8 distribution_count = 0;
+  uint8 public distribution_count = 0;
 
   struct Distribution {
     uint256 total_tokens;
@@ -69,9 +69,6 @@ contract JYNX_Distribution is Ownable {
     uint256 jynx_balance = jynx_token.balanceOf(address(this));
     require(_community_pool + _treasury + _network_pool == jynx_balance,
       "must allocate all tokens");
-    uint256 supply = jynx_token.totalSupply();
-    require(jynx_balance == supply - (supply / 10000),
-      "total supply of JYNX must be held by contract");
     community_pool = _community_pool;
     network_pool = _network_pool;
     treasury = _treasury;
@@ -113,6 +110,7 @@ contract JYNX_Distribution is Ownable {
     require(distribution_events[id].total_tokens - distribution_events[id].tokens_sold > 0, "sold out");
     uint256 token_amount = amount / distribution_events[id].usd_rate;
     user_allocations[id][msg.sender] += token_amount;
+    distribution_events[id].tokens_sold += token_amount;
     dai.transferFrom(msg.sender, address(this), amount);
   }
 
