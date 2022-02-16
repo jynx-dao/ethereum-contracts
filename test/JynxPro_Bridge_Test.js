@@ -197,6 +197,7 @@ contract("JynxPro_Bridge", (accounts) => {
     it("should fail to remove asset with invalid signature", async () => {
       try {
         await test_remove_asset(accounts[1]);
+        assert.fail();
       } catch(e) {
         assert.equal(e.reason, "Signature invalid");
       }
@@ -227,6 +228,7 @@ contract("JynxPro_Bridge", (accounts) => {
     it("should fail to deposit when asset not registered", async () => {
       try {
         await test_deposit_asset(accounts[9]);
+        assert.fail();
       } catch(e) {
         assert.equal(e.reason, "Deposits not enabled for this asset");
       }
@@ -235,8 +237,49 @@ contract("JynxPro_Bridge", (accounts) => {
 
   describe("withdraw_assets", async () => {});
 
-  describe("add_stake", async () => {});
+  describe("add_stake", async () => {
+    it("should add stake", async () => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      const jynx_token = await JYNX.deployed();
+      const jynx_key1 = "0x02d47b3068c9ff8e25eec7c83b74eb2c61073a1862f925b644b4b234c21e83dd";
+      const jynx_key2 = "0x444cb478ed767da6543376f15879ffed71c93c85d95eb79f9202ecbed54a5000";
+      await jynx_pro_bridge.add_stake(web3.utils.toWei("10000"), jynx_key1, {from:accounts[0]});
+      await jynx_pro_bridge.add_stake(web3.utils.toWei("10000"), jynx_key2, {from:accounts[0]});
+      const total_stake = await jynx_pro_bridge.user_total_stake.call(accounts[0]);
+      const key1_stake = await jynx_pro_bridge.user_stake.call(accounts[0], jynx_key1);
+      const key2_stake = await jynx_pro_bridge.user_stake.call(accounts[0], jynx_key2);
+      assert.equal(total_stake, web3.utils.toWei("20000"));
+      assert.equal(key1_stake, web3.utils.toWei("10000"));
+      assert.equal(key2_stake, web3.utils.toWei("10000"));
+      const balance = await jynx_token.balanceOf(jynx_pro_bridge.address);
+      assert.equal(balance, web3.utils.toWei("30000"));
+    });
+  });
 
-  describe("remove_stake", async () => {});
+  describe("remove_stake", async () => {
+    const test_remove_stake = async (amount) => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      const jynx_token = await JYNX.deployed();
+      const jynx_key = "0x02d47b3068c9ff8e25eec7c83b74eb2c61073a1862f925b644b4b234c21e83dd";
+      await jynx_pro_bridge.remove_stake(amount, jynx_key, {from:accounts[0]});
+      const total_stake = await jynx_pro_bridge.user_total_stake.call(accounts[0]);
+      const key_stake = await jynx_pro_bridge.user_stake.call(accounts[0], jynx_key);
+      assert.equal(total_stake, web3.utils.toWei("19000"));
+      assert.equal(key_stake, web3.utils.toWei("9000"));
+      const balance = await jynx_token.balanceOf(jynx_pro_bridge.address);
+      assert.equal(balance, web3.utils.toWei("29000"));
+    };
+    it("should fail to remove stake when not registered", async () => {
+      try {
+        await test_remove_stake(web3.utils.toWei("50000"));
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "Not enough stake");
+      }
+    });
+    it("should remove stake", async () => {
+      await test_remove_stake(web3.utils.toWei("1000"));
+    });
+  });
 
 });

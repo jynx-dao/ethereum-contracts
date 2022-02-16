@@ -161,7 +161,7 @@ contract JynxPro_Bridge {
     require(user_stake[msg.sender][_jynx_key] >= _amount, "Not enough stake");
     user_stake[msg.sender][_jynx_key] -= _amount;
     user_total_stake[msg.sender] -= _amount;
-    jynx_token.transferFrom(address(this), msg.sender, _amount);
+    jynx_token.transfer(msg.sender, _amount);
     RemoveStake(msg.sender, _amount, _jynx_key);
   }
 
