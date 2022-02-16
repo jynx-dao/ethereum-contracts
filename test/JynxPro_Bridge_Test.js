@@ -131,7 +131,6 @@ contract("JynxPro_Bridge", (accounts) => {
   });
 
   describe("add_asset", async () => {
-    const jynx_token = await JYNX.deployed();
     const test_add_asset = async (signer, asset) => {
       const jynx_pro_bridge = await JynxPro_Bridge.deployed();
       const nonce = new ethUtil.BN(crypto.randomBytes(32));
@@ -151,6 +150,7 @@ contract("JynxPro_Bridge", (accounts) => {
     }
     it("should fail to add asset with invalid signature", async () => {
       try {
+        const jynx_token = await JYNX.deployed();
         await test_add_asset(accounts[1], jynx_token.address);
         assert.fail();
       } catch(e) {
@@ -158,11 +158,13 @@ contract("JynxPro_Bridge", (accounts) => {
       }
     });
     it("should add asset", async () => {
+      const jynx_token = await JYNX.deployed();
       await test_add_asset(accounts[0], jynx_token.address);
       await test_add_asset(accounts[0], accounts[9]);
     });
     it("should fail to add asset when already exists", async () => {
       try {
+        const jynx_token = await JYNX.deployed();
         await test_add_asset(accounts[0], jynx_token.address);
         assert.fail();
       } catch(e) {
@@ -187,8 +189,10 @@ contract("JynxPro_Bridge", (accounts) => {
       const signature = ethUtil.ecsign(encoded_hash, private_keys[signer]);
       const sig_string = to_signature_string(signature);
       await jynx_pro_bridge.remove_asset(accounts[9], nonce, sig_string, {from:accounts[0]});
-      const asset_valid = await jynx_pro_bridge.assets.call(accounts[9]);
-      assert.equal(asset_valid, false);
+      const asset1_valid = await jynx_pro_bridge.assets.call(accounts[9]);
+      const asset2_valid = await jynx_pro_bridge.assets.call(jynx_token.address);
+      assert.equal(asset1_valid, false);
+      assert.equal(asset2_valid, true);
     }
     it("should fail to remove asset with invalid signature", async () => {
       try {
@@ -203,7 +207,30 @@ contract("JynxPro_Bridge", (accounts) => {
   });
 
   describe("deposit_asset", async () => {
-
+    const test_deposit_asset = async (asset) => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      const jynx_token = await JYNX.deployed();
+      if(asset === jynx_token.address) {
+        await jynx_token.issue(accounts[0], web3.utils.toWei("100000"));
+        await jynx_token.approve(jynx_pro_bridge.address, web3.utils.toWei("100000"));
+        const asset_valid = await jynx_pro_bridge.assets.call(jynx_token.address);
+        assert.equal(asset_valid, true);
+      }
+      await jynx_pro_bridge.deposit_asset(asset, web3.utils.toWei("10000"), {from:accounts[0]});
+      const balance = await jynx_token.balanceOf(jynx_pro_bridge.address);
+      assert.equal(balance, web3.utils.toWei("10000"));
+    };
+    it("should deposit JYNX", async () => {
+      const jynx_token = await JYNX.deployed();
+      await test_deposit_asset(jynx_token.address);
+    });
+    it("should fail to deposit when asset not registered", async () => {
+      try {
+        await test_deposit_asset(accounts[9]);
+      } catch(e) {
+        assert.equal(e.reason, "Deposits not enabled for this asset");
+      }
+    });
   });
 
   describe("withdraw_assets", async () => {});
