@@ -6,6 +6,7 @@ const JynxPro_Bridge = artifacts.require("JynxPro_Bridge");
 const timeMachine = require('ganache-time-traveler');
 
 contract("JYNX_Distribution", (accounts) => {
+
   const test_buy_tokens = async (id, amount) => {
     const jynx_distribution = await JYNX_Distribution.deployed();
     const dai = await DAI.deployed();
@@ -16,7 +17,8 @@ contract("JYNX_Distribution", (accounts) => {
     const allow = await jynx_distribution.user_allocations.call(id, accounts[0]);
     assert.equal(web3.utils.fromWei(allow), web3.utils.fromWei(amount));
   };
-  let test_create_distribution = async (diff, amount, pool, dist_count) => {
+
+  const test_create_distribution = async (diff, amount, pool, dist_count) => {
     const jynx_distribution = await JYNX_Distribution.deployed();
     const ts = (await web3.eth.getBlock()).timestamp;
     await jynx_distribution.create_distribution(
@@ -31,6 +33,7 @@ contract("JYNX_Distribution", (accounts) => {
     assert.equal(count, dist_count);
     assert.equal(pool, web3.utils.fromWei(await jynx_distribution.community_pool.call()));
   };
+
   describe("initialize", async () => {
     const test_initialize = async (diff) => {
       const jynx_distribution = await JYNX_Distribution.deployed();
@@ -66,6 +69,7 @@ contract("JYNX_Distribution", (accounts) => {
       }
     });
   });
+
   describe("create_distribution", async () => {
     it("should fail to create distribution when ends before beginning", async () => {
       try {
@@ -87,6 +91,7 @@ contract("JYNX_Distribution", (accounts) => {
       await test_create_distribution(0, 100000000, 199970000, 1);
     });
   });
+
   describe("buy_tokens", async () => {
     it("should fail to buy tokens before distribution starts", async () => {
       try {
@@ -126,6 +131,7 @@ contract("JYNX_Distribution", (accounts) => {
       await timeMachine.revertToSnapshot(snapshot);
     });
   });
+
   describe("reclaim_unsold_tokens", async () => {
     const test_reclaim_unsold_tokens = async (id, pool) => {
       const jynx_distribution = await JYNX_Distribution.deployed();
@@ -170,19 +176,63 @@ contract("JYNX_Distribution", (accounts) => {
       await timeMachine.revertToSnapshot(snapshot);
     });
   });
+
   describe("update_dai_address", async () => {
-    it("should...", async () => {});
+    it("should update DAI address", async () => {
+      const dai = await DAI.deployed();
+      const jynx_distribution = await JYNX_Distribution.deployed();
+      await jynx_distribution.update_dai_address(dai.address);
+    });
   });
+
   describe("redeem_erc20", async () => {
-    it("should...", async () => {});
+    it("should redeem erc20", async () => {
+      const dai = await DAI.deployed();
+      const jynx = await JYNX.deployed();
+      const jynx_distribution = await JYNX_Distribution.deployed();
+      await test_create_distribution(0, 100000000, 99970000, 2);
+      await timeMachine.advanceTimeAndBlock(60);
+      await test_buy_tokens(1, 1000);
+      let balance = await dai.balanceOf(jynx_distribution.address);
+      assert.equal(web3.utils.fromWei(balance), 1000);
+      balance = await dai.balanceOf(accounts[0]);
+      assert.equal(web3.utils.fromWei(balance), 1000);
+      await jynx_distribution.redeem_erc20(dai.address, balance, accounts[0]);
+      balance = await dai.balanceOf(accounts[0]);
+      assert.equal(web3.utils.fromWei(balance), 2000);
+    });
+    it("should not redeem erc20 if JYNX", async () => {
+      try {
+        const jynx = await JYNX.deployed();
+        const jynx_distribution = await JYNX_Distribution.deployed();
+        await jynx_distribution.redeem_erc20(jynx.address, web3.utils.toWei("1000"), accounts[0]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "cannot redeem JYNX");
+      }
+    });
+    it("should not redeem erc20 with insufficient balance", async () => {
+      try {
+        const dai = await DAI.deployed();
+        const jynx_distribution = await JYNX_Distribution.deployed();
+        await jynx_distribution.redeem_erc20(dai.address, web3.utils.toWei("1000"), accounts[0]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "insufficient balance");
+      }
+    });
   });
+
   describe("claim_tokens_for_distribution", async () => {
     it("should...", async () => {});
   });
+
   describe("claim_treasury_tokens", async () => {
     it("should...", async () => {});
   });
+
   describe("claim_network_tokens", async () => {
     it("should...", async () => {});
   });
+
 });
