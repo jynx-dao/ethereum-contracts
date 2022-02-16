@@ -15,12 +15,6 @@ contract JynxPro_Bridge {
   event AddStake(address user, uint256 amount, bytes32 jynx_key);
   event RemoveStake(address user, uint256 amount, bytes32 jynx_key);
 
-  struct Withdrawal {
-    address destination;
-    uint256 amount;
-    address asset_address;
-  }
-
   JYNX public jynx_token;
 
   mapping(address => uint256) public user_total_stake;
@@ -121,20 +115,25 @@ contract JynxPro_Bridge {
   }
 
   /// @notice Withdraw an asset from the bridge
-  /// @param _withdrawals batch of withdrawals
+  /// @param destinations recipient addresses
+  /// @param amounts withdrawal amounts
+  /// @param asset_addresses assets
   /// @param _nonce prevent replay attacks
   /// @param _signatures signed message
   function withdraw_assets(
-    Withdrawal[] memory _withdrawals,
+    address[] memory destinations,
+    uint256[] memory amounts,
+    address[] memory asset_addresses,
     uint256 _nonce,
     bytes memory _signatures
   ) public {
-    bytes memory message = abi.encode(_withdrawals, _nonce, "withdraw_assets");
+    require(destinations.length == amounts.length, "amounts and destinations must be equal in length");
+    require(destinations.length == asset_addresses.length, "asset_addresses and destinations must be equal in length");
+    bytes memory message = abi.encode(destinations, amounts, asset_addresses, _nonce, "withdraw_assets");
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
-    for(uint256 i=0; i<_withdrawals.length; i++) {
-      ERC20(_withdrawals[i].asset_address).transferFrom(address(this),
-        _withdrawals[i].destination, _withdrawals[i].amount);
-      WithdrawAsset(msg.sender, _withdrawals[i].asset_address, _withdrawals[i].amount, _nonce);
+    for(uint256 i=0; i<destinations.length; i++) {
+      ERC20(asset_addresses[i]).transfer(destinations[i], amounts[i]);
+      WithdrawAsset(destinations[i], asset_addresses[i], amounts[i], _nonce);
     }
   }
 

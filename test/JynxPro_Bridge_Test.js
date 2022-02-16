@@ -235,7 +235,36 @@ contract("JynxPro_Bridge", (accounts) => {
     });
   });
 
-  describe("withdraw_assets", async () => {});
+  describe("withdraw_assets", async () => {
+    const test_withdraw_assets = async () => {
+      const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+      const jynx_token = await JYNX.deployed();
+      const nonce = new ethUtil.BN(crypto.randomBytes(32));
+      const destinations = [accounts[2], accounts[3]];
+      const amounts = [web3.utils.toWei("1000"), web3.utils.toWei("1000")];
+      const assets = [jynx_token.address, jynx_token.address];
+      let encoded_message = get_message_to_sign(
+        ["address[]", "uint256[]", "address[]"],
+        [destinations, amounts, assets],
+        nonce,
+        "withdraw_assets",
+        accounts[0]
+      );
+      const encoded_hash = ethUtil.keccak256(encoded_message);
+      const signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
+      const sig_string = to_signature_string(signature);
+      await jynx_pro_bridge.withdraw_assets(destinations, amounts, assets, nonce, sig_string, {from:accounts[0]});
+      let balance = await jynx_token.balanceOf(jynx_pro_bridge.address);
+      assert.equal(balance, web3.utils.toWei("8000"));
+      balance = await jynx_token.balanceOf(accounts[2]);
+      assert.equal(balance, web3.utils.toWei("1000"));
+      balance = await jynx_token.balanceOf(accounts[3]);
+      assert.equal(balance, web3.utils.toWei("1000"));
+    };
+    it("should withdraw assets", async () => {
+      await test_withdraw_assets();
+    });
+  });
 
   describe("add_stake", async () => {
     it("should add stake", async () => {
@@ -252,7 +281,7 @@ contract("JynxPro_Bridge", (accounts) => {
       assert.equal(key1_stake, web3.utils.toWei("10000"));
       assert.equal(key2_stake, web3.utils.toWei("10000"));
       const balance = await jynx_token.balanceOf(jynx_pro_bridge.address);
-      assert.equal(balance, web3.utils.toWei("30000"));
+      assert.equal(balance, web3.utils.toWei("28000"));
     });
   });
 
@@ -267,7 +296,7 @@ contract("JynxPro_Bridge", (accounts) => {
       assert.equal(total_stake, web3.utils.toWei("19000"));
       assert.equal(key_stake, web3.utils.toWei("9000"));
       const balance = await jynx_token.balanceOf(jynx_pro_bridge.address);
-      assert.equal(balance, web3.utils.toWei("29000"));
+      assert.equal(balance, web3.utils.toWei("27000"));
     };
     it("should fail to remove stake when not registered", async () => {
       try {
