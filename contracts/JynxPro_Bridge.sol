@@ -7,14 +7,14 @@ import "./JYNX_Distribution.sol";
 
 contract JynxPro_Bridge {
 
-  event AddSigner(address signer, uint256 nonce);
-  event RemoveSigner(address signer, uint256 nonce);
-  event AddAsset(address asset, uint256 nonce);
-  event RemoveAsset(address asset, uint256 nonce);
-  event DepositAsset(address user, address asset, uint256 amount);
-  event WithdrawAsset(address user, address asset, uint256 amount, uint256 nonce);
-  event AddStake(address user, uint256 amount, bytes32 jynx_key);
-  event RemoveStake(address user, uint256 amount, bytes32 jynx_key);
+  event AddSigner(address indexed signer, uint256 nonce);
+  event RemoveSigner(address indexed signer, uint256 nonce);
+  event AddAsset(address indexed asset, uint256 nonce);
+  event RemoveAsset(address indexed asset, uint256 nonce);
+  event DepositAsset(address indexed user, address indexed asset, uint256 indexed amount);
+  event WithdrawAsset(address indexed user, address indexed asset, uint256 indexed amount, uint256 nonce);
+  event AddStake(address indexed user, uint256 indexed amount, bytes32 indexed jynx_key);
+  event RemoveStake(address indexed user, uint256 indexed amount, bytes32 indexed jynx_key);
 
   JYNX_Distribution public jynx_distribution;
   JYNX public jynx_token;
