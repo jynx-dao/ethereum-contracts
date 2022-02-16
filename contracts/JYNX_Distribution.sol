@@ -16,10 +16,10 @@ contract JYNX_Distribution is Ownable {
   uint256 public community_pool;
 
   mapping(uint8 => mapping(address => uint256)) public user_allocations;
-  mapping(uint8 => TokenSale) public token_sales;
-  uint8 token_sale_count = 0;
+  mapping(uint8 => Distribution) public distribution_events;
+  uint8 distribution_count = 0;
 
-  struct TokenSale {
+  struct Distribution {
     uint256 total_tokens;
     uint256 tokens_sold;
     uint256 start_date;
@@ -66,32 +66,32 @@ contract JYNX_Distribution is Ownable {
   ) public onlyOwner {
     require(end_date > start_date, "cannot end before starting");
     require(total_tokens <= community_pool, "not enough tokens left");
-    token_sales[token_sale_count] = TokenSale(total_tokens, 0, start_date,
+    distribution_events[distribution_count] = Distribution(total_tokens, 0, start_date,
       end_date, usd_rate, cliff_timestamp, vesting_duration, false);
     community_pool -= total_tokens;
-    token_sale_count++;
+    distribution_count++;
   }
 
   function buy_tokens(
     uint8 id,
     uint256 amount
   ) public {
-    require(token_sales[id].start_date < block.timestamp, "token sale not started");
-    require(token_sales[id].end_date > block.timestamp, "token sale ended");
-    require(token_sales[id].total_tokens - token_sales[id].tokens_sold > 0, "sold out");
+    require(distribution_events[id].start_date < block.timestamp, "token sale not started");
+    require(distribution_events[id].end_date > block.timestamp, "token sale ended");
+    require(distribution_events[id].total_tokens - distribution_events[id].tokens_sold > 0, "sold out");
     dai.transferFrom(msg.sender, address(this), amount);
-    uint256 token_amount = amount / token_sales[id].usd_rate;
+    uint256 token_amount = amount / distribution_events[id].usd_rate;
     user_allocations[id][msg.sender] += token_amount;
   }
 
   function reclaim_unsold_tokens(
     uint8 id
   ) public {
-    require(token_sales[id].end_date < block.timestamp, "token sale has not ended");
-    require(!token_sales[id].reclaimed, "unsold tokens already reclaimed");
-    uint256 unsold_tokens = token_sales[id].total_tokens - token_sales[id].tokens_sold;
+    require(distribution_events[id].end_date < block.timestamp, "token sale has not ended");
+    require(!distribution_events[id].reclaimed, "unsold tokens already reclaimed");
+    uint256 unsold_tokens = distribution_events[id].total_tokens - distribution_events[id].tokens_sold;
     community_pool += unsold_tokens;
-    token_sales[id].reclaimed = true;
+    distribution_events[id].reclaimed = true;
   }
 
   function update_dai_address(
