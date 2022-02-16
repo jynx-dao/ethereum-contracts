@@ -127,12 +127,46 @@ contract("JYNX_Distribution", (accounts) => {
     });
   });
   describe("reclaim_unsold_tokens", async () => {
+    const test_reclaim_unsold_tokens = async (id, pool) => {
+      const jynx_distribution = await JYNX_Distribution.deployed();
+      await jynx_distribution.reclaim_unsold_tokens(id);
+      assert.equal(pool, web3.utils.fromWei(await jynx_distribution.community_pool.call()));
+    };
     it("should reclaim unsold tokens", async () => {
-      await test_create_distribution(0, 100000000, 99970000, 2);
       const snapshot = (await timeMachine.takeSnapshot())['result'];
+      await test_create_distribution(0, 100000000, 99970000, 2);
       await timeMachine.advanceTimeAndBlock(60);
       await test_buy_tokens(1, 1000);
       await timeMachine.advanceTimeAndBlock(120);
+      await test_reclaim_unsold_tokens(1, 199969000);
+      await timeMachine.revertToSnapshot(snapshot);
+    });
+    it("should not reclaim unsold tokens before distribution ends", async () => {
+      const snapshot = (await timeMachine.takeSnapshot())['result'];
+      await test_create_distribution(0, 100000000, 99970000, 2);
+      await timeMachine.advanceTimeAndBlock(60);
+      await test_buy_tokens(1, 1000);
+      try {
+        await test_reclaim_unsold_tokens(1, 199969000);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "distribution has not ended");
+      }
+      await timeMachine.revertToSnapshot(snapshot);
+    });
+    it("should not reclaim unsold tokens when already reclaimed", async () => {
+      const snapshot = (await timeMachine.takeSnapshot())['result'];
+      await test_create_distribution(0, 100000000, 99970000, 2);
+      await timeMachine.advanceTimeAndBlock(60);
+      await test_buy_tokens(1, 1000);
+      await timeMachine.advanceTimeAndBlock(120);
+      await test_reclaim_unsold_tokens(1, 199969000);
+      try {
+        await test_reclaim_unsold_tokens(1, 199969000);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "unsold tokens already reclaimed");
+      }
       await timeMachine.revertToSnapshot(snapshot);
     });
   });
