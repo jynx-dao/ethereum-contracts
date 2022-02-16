@@ -59,7 +59,7 @@ contract JynxPro_Bridge {
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     signers[_signer] = true;
     signer_count++;
-    AddSigner(_signer, _nonce);
+    emit AddSigner(_signer, _nonce);
   }
 
   /// @notice Remove an existing signer from the bridge
@@ -76,7 +76,7 @@ contract JynxPro_Bridge {
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     signers[_signer] = false;
     signer_count--;
-    RemoveSigner(_signer, _nonce);
+    emit RemoveSigner(_signer, _nonce);
   }
 
   /// @notice Adds an asset to the bridge
@@ -92,7 +92,7 @@ contract JynxPro_Bridge {
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     require(!assets[_address], "Asset already exists");
     assets[_address] = true;
-    AddAsset(_address, _nonce);
+    emit AddAsset(_address, _nonce);
   }
 
   /// @notice Disables an asset on the bridge
@@ -107,7 +107,7 @@ contract JynxPro_Bridge {
     bytes memory message = abi.encode(_address, _nonce, "remove_asset");
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     assets[_address] = false;
-    RemoveAsset(_address, _nonce);
+    emit RemoveAsset(_address, _nonce);
   }
 
   /// @notice Deposit asset to the bridge
@@ -119,7 +119,7 @@ contract JynxPro_Bridge {
   ) public {
     require(assets[_address], "Deposits not enabled for this asset");
     ERC20(_address).transferFrom(msg.sender, address(this), _amount);
-    DepositAsset(msg.sender, _address, _amount);
+    emit DepositAsset(msg.sender, _address, _amount);
   }
 
   /// @notice Withdraw an asset from the bridge
@@ -141,7 +141,7 @@ contract JynxPro_Bridge {
     require(verify_signatures(_signatures, message, _nonce), "Signature invalid");
     for(uint256 i=0; i<destinations.length; i++) {
       ERC20(asset_addresses[i]).transfer(destinations[i], amounts[i]);
-      WithdrawAsset(destinations[i], asset_addresses[i], amounts[i], _nonce);
+      emit WithdrawAsset(destinations[i], asset_addresses[i], amounts[i], _nonce);
     }
   }
 
@@ -155,7 +155,7 @@ contract JynxPro_Bridge {
     user_stake[msg.sender][_jynx_key] += _amount;
     user_total_stake[msg.sender] += _amount;
     jynx_token.transferFrom(msg.sender, address(this), _amount);
-    AddStake(msg.sender, _amount, _jynx_key);
+    emit AddStake(msg.sender, _amount, _jynx_key);
   }
 
   /// @notice Unstake tokens
@@ -169,7 +169,7 @@ contract JynxPro_Bridge {
     user_stake[msg.sender][_jynx_key] -= _amount;
     user_total_stake[msg.sender] -= _amount;
     jynx_token.transfer(msg.sender, _amount);
-    RemoveStake(msg.sender, _amount, _jynx_key);
+    emit RemoveStake(msg.sender, _amount, _jynx_key);
   }
 
   /// @notice Claim network tokens from distribution contract
