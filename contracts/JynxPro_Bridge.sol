@@ -11,10 +11,10 @@ contract JynxPro_Bridge {
   event RemoveSigner(address indexed signer, uint256 nonce);
   event AddAsset(address indexed asset, uint256 nonce);
   event RemoveAsset(address indexed asset, uint256 nonce);
-  event DepositAsset(address indexed user, address indexed asset, uint256 indexed amount);
+  event DepositAsset(address user, address indexed asset, uint256 indexed amount, bytes32 indexed jynx_key);
   event WithdrawAsset(address indexed user, address indexed asset, uint256 indexed amount, uint256 nonce);
-  event AddStake(address indexed user, uint256 indexed amount, bytes32 indexed jynx_key);
-  event RemoveStake(address indexed user, uint256 indexed amount, bytes32 indexed jynx_key);
+  event AddStake(address user, uint256 indexed amount, bytes32 indexed jynx_key);
+  event RemoveStake(address user, uint256 indexed amount, bytes32 indexed jynx_key);
 
   JYNX_Distribution public jynx_distribution;
   JYNX public jynx_token;
@@ -113,13 +113,15 @@ contract JynxPro_Bridge {
   /// @notice Deposit asset to the bridge
   /// @param _address the ERC20 token address
   /// @param _amount the deposit amount
+  /// @param _jynx_key the Jynx network key to credit
   function deposit_asset(
     address _address,
-    uint256 _amount
+    uint256 _amount,
+    bytes32 _jynx_key
   ) public {
     require(assets[_address], "Deposits not enabled for this asset");
     ERC20(_address).transferFrom(msg.sender, address(this), _amount);
-    emit DepositAsset(msg.sender, _address, _amount);
+    emit DepositAsset(msg.sender, _address, _amount, _jynx_key);
   }
 
   /// @notice Withdraw an asset from the bridge

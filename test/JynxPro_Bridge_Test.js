@@ -295,6 +295,7 @@ contract("JynxPro_Bridge", (accounts) => {
 
   describe("deposit_asset", async () => {
     const test_deposit_asset = async (asset) => {
+      const jynx_key = "0x02d47b3068c9ff8e25eec7c83b74eb2c61073a1862f925b644b4b234c21e83dd";
       const jynx_pro_bridge = await JynxPro_Bridge.deployed();
       const jynx_token = await JYNX.deployed();
       if(asset === jynx_token.address) {
@@ -302,7 +303,7 @@ contract("JynxPro_Bridge", (accounts) => {
         const asset_valid = await jynx_pro_bridge.assets.call(jynx_token.address);
         assert.equal(asset_valid, true);
       }
-      await jynx_pro_bridge.deposit_asset(asset, web3.utils.toWei("10000"), {from:accounts[0]});
+      await jynx_pro_bridge.deposit_asset(asset, web3.utils.toWei("10000"), jynx_key, {from:accounts[0]});
       const balance = await jynx_token.balanceOf(jynx_pro_bridge.address);
       assert.equal(balance, web3.utils.toWei("10000"));
     };
