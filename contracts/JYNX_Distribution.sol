@@ -167,6 +167,9 @@ contract JYNX_Distribution is Ownable {
     uint256 duration = distribution_events[id].vesting_duration;
     uint256 vesting_end = cliff + duration;
     uint256 available_tokens = user_allocations[id][user] - claimed_tokens[id][user];
+    if(block.timestamp < cliff) {
+      return 0;
+    }
     if(block.timestamp < vesting_end) {
       uint256 seconds_since_cliff = block.timestamp - cliff;
       uint256 vested_ratio = (seconds_since_cliff * 1000000) / duration;
@@ -194,6 +197,9 @@ contract JYNX_Distribution is Ownable {
     uint256 duration = 86400 * 365 * 5;
     uint256 vesting_end = cliff + duration;
     uint256 available_tokens = total_balance - claimed_balance;
+    if(block.timestamp < cliff) {
+      return 0;
+    }
     if(block.timestamp < vesting_end) {
       uint256 seconds_since_cliff = block.timestamp - cliff;
       uint256 vested_ratio = (seconds_since_cliff * 1000000) / duration;

@@ -1,9 +1,11 @@
 const JynxPro_Bridge = artifacts.require("JynxPro_Bridge");
 const JYNX = artifacts.require("JYNX");
+const JYNX_Distribution = artifacts.require("JYNX_Distribution");
 
 const abi = require('ethereumjs-abi');
 const crypto = require("crypto");
 const ethUtil = require('ethereumjs-util');
+const timeMachine = require('ganache-time-traveler');
 
 let private_keys = {
   "0xE2dC41E809A3c82B18DDdFB0A36B5f2CFA63CF2f": Buffer.from("b219d340d8e6aacdca54cecf104e6998b21411c9858ff1d25324a98d38ed034c", "hex"),
@@ -321,13 +323,15 @@ contract("JynxPro_Bridge", (accounts) => {
   });
 
   describe("withdraw_assets", async () => {
-    const test_withdraw_assets = async () => {
+    const test_withdraw_assets = async (
+      jynx_token,
+      amounts,
+      destinations,
+      assets,
+      signer
+    ) => {
       const jynx_pro_bridge = await JynxPro_Bridge.deployed();
-      const jynx_token = await JYNX.deployed();
       const nonce = new ethUtil.BN(crypto.randomBytes(32));
-      const destinations = [accounts[2], accounts[3]];
-      const amounts = [web3.utils.toWei("1000"), web3.utils.toWei("1000")];
-      const assets = [jynx_token.address, jynx_token.address];
       let encoded_message = get_message_to_sign(
         ["address[]", "uint256[]", "address[]"],
         [destinations, amounts, assets],
@@ -336,7 +340,7 @@ contract("JynxPro_Bridge", (accounts) => {
         accounts[0]
       );
       const encoded_hash = ethUtil.keccak256(encoded_message);
-      const signature = ethUtil.ecsign(encoded_hash, private_keys[accounts[0]]);
+      const signature = ethUtil.ecsign(encoded_hash, private_keys[signer]);
       const sig_string = to_signature_string(signature);
       await jynx_pro_bridge.withdraw_assets(destinations, amounts, assets, nonce, sig_string, {from:accounts[0]});
       let balance = await jynx_token.balanceOf(jynx_pro_bridge.address);
@@ -347,7 +351,47 @@ contract("JynxPro_Bridge", (accounts) => {
       assert.equal(balance, web3.utils.toWei("1000"));
     };
     it("should withdraw assets", async () => {
-      await test_withdraw_assets();
+      const jynx_token = await JYNX.deployed();
+      const destinations = [accounts[2], accounts[3]];
+      const amounts = [web3.utils.toWei("1000"), web3.utils.toWei("1000")];
+      const assets = [jynx_token.address, jynx_token.address];
+      await test_withdraw_assets(jynx_token, amounts, destinations, assets, accounts[0]);
+    });
+    it("should not withdraw assets with mismatched destinations and amounts", async () => {
+      const jynx_token = await JYNX.deployed();
+      const destinations = [accounts[2]];
+      const amounts = [web3.utils.toWei("1000"), web3.utils.toWei("1000")];
+      const assets = [jynx_token.address, jynx_token.address];
+      try {
+        await test_withdraw_assets(jynx_token, amounts, destinations, assets, accounts[0]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "amounts and destinations must be equal in length");
+      }
+    });
+    it("should not withdraw assets with mismatched destinations and assets", async () => {
+      const jynx_token = await JYNX.deployed();
+      const destinations = [accounts[2], accounts[3]];
+      const amounts = [web3.utils.toWei("1000"), web3.utils.toWei("1000")];
+      const assets = [jynx_token.address];
+      try {
+        await test_withdraw_assets(jynx_token, amounts, destinations, assets, accounts[0]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "asset_addresses and destinations must be equal in length");
+      }
+    });
+    it("should not withdraw assets with invalid signature", async () => {
+      const jynx_token = await JYNX.deployed();
+      const destinations = [accounts[2], accounts[3]];
+      const amounts = [web3.utils.toWei("1000"), web3.utils.toWei("1000")];
+      const assets = [jynx_token.address, jynx_token.address];
+      try {
+        await test_withdraw_assets(jynx_token, amounts, destinations, assets, accounts[1]);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "Signature invalid");
+      }
     });
   });
 
@@ -396,6 +440,59 @@ contract("JynxPro_Bridge", (accounts) => {
     });
    });
 
-   describe("claim_network_tokens", async () => {});
+   describe("claim_network_tokens", async () => {
+     const test_claim_network_tokens = async (signer) => {
+       const snapshot = (await timeMachine.takeSnapshot())['result'];
+       const jynx_pro_bridge = await JynxPro_Bridge.deployed();
+       const nonce = new ethUtil.BN(crypto.randomBytes(32));
+       let encoded_message = get_message_to_sign(
+         [],
+         [],
+         nonce,
+         "claim_network_tokens",
+         accounts[0]
+       );
+       const encoded_hash = ethUtil.keccak256(encoded_message);
+       const signature = ethUtil.ecsign(encoded_hash, private_keys[signer]);
+       const sig_string = to_signature_string(signature);
+       // Initialize
+       const jynx_distribution = await JYNX_Distribution.deployed();
+       const jynx_token = await JYNX.deployed();
+       await jynx_distribution.initialize(
+         jynx_token.address,
+         jynx_pro_bridge.address,
+         web3.utils.toWei("199980000"),
+         web3.utils.toWei("499950000"),
+         web3.utils.toWei(String(299970000))
+       );
+       const amount = "100000000";
+       // Create distribution
+       const ts = (await web3.eth.getBlock()).timestamp;
+       await jynx_distribution.create_distribution(
+         web3.utils.toWei(String(amount)),
+         String(ts+60),
+         String(ts+120),
+         String(1),
+         String(ts+300),
+         String(600)
+       );
+       // Skip to end of distribution period
+       await timeMachine.advanceTimeAndBlock(10000);
+       // Try to clam
+       await jynx_pro_bridge.claim_network_tokens(nonce, sig_string);
+       await timeMachine.revertToSnapshot(snapshot);
+     };
+     it("should claim network tokens", async () => {
+       await test_claim_network_tokens(accounts[0]);
+     });
+     it("should not claim network tokens with invalid signature", async () => {
+       try {
+         await test_claim_network_tokens(accounts[1]);
+         assert.fail();
+       } catch(e) {
+         assert.equal(e.reason, "Signature invalid");
+       }
+     });
+   });
 
 });

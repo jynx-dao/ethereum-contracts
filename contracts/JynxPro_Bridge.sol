@@ -209,8 +209,6 @@ contract JynxPro_Bridge {
         s := mload(add(_signatures, add(i, 32)))
         v := byte(0, mload(add(_signatures, add(i, 64))))
       }
-      require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, "mallable sig error");
-      if (v < 27) v += 27;
       address addr = ecrecover(message_hash, v, r, s);
       if(signers[addr] && !has_signed[message_hash][addr]){
         has_signed[message_hash][addr] = true;
