@@ -33,7 +33,6 @@ function get_message_to_sign(
     return abi.rawEncode(["bytes", "address"], [encoded_a, sender]);
 }
 
-
 function to_signature_string(sig){
     return "0x" + sig.r.toString('hex') + "" + sig.s.toString('hex') +""+ sig.v.toString(16);
 }
