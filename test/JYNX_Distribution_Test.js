@@ -57,6 +57,14 @@ contract("JYNX_Distribution", (accounts) => {
         assert.equal(e.reason, "must allocate all tokens");
       }
     });
+    it("should fail to create distribution before initialized", async () => {
+      try {
+        await test_create_distribution(0, 100000000);
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "contract must be initialized");
+      }
+    });
     it("should initialize contract", async () => {
       await test_initialize(0);
     });
@@ -84,7 +92,7 @@ contract("JYNX_Distribution", (accounts) => {
         await test_create_distribution(0, 500000000);
         assert.fail();
       } catch(e) {
-        assert.equal(e.reason, "not enough tokens left")
+        assert.equal(e.reason, "not enough tokens left");
       }
     });
     it("should create distribution", async () => {
@@ -224,15 +232,42 @@ contract("JYNX_Distribution", (accounts) => {
   });
 
   describe("claim_tokens_for_distribution", async () => {
-    it("should...", async () => {});
+    it("should claim tokens for distribution", async () => {
+      const jynx_distribution = await JYNX_Distribution.deployed();
+      await timeMachine.advanceTimeAndBlock(1000);
+      await jynx_distribution.claim_tokens_for_distribution(1);
+      const total = await jynx_distribution.claimed_tokens.call(1, accounts[0]);
+      assert.equal(web3.utils.fromWei(total), 1000);
+    });
   });
 
   describe("claim_treasury_tokens", async () => {
-    it("should...", async () => {});
+    it("should claim treasury tokens", async () => {
+      const jynx_distribution = await JYNX_Distribution.deployed();
+      await jynx_distribution.claim_treasury_tokens();
+      const pool = await jynx_distribution.treasury_claimed.call();
+      assert.equal(web3.utils.fromWei(pool), 0);
+    });
   });
 
   describe("claim_network_tokens", async () => {
-    it("should...", async () => {});
+    it("should fail to claim network tokens when not bridge", async () => {
+      try {
+        const jynx_distribution = await JYNX_Distribution.deployed();
+        await jynx_distribution.claim_network_tokens();
+        assert.fail();
+      } catch(e) {
+        assert.equal(e.reason, "only bridge can claim network tokens");
+      }
+    });
+  });
+
+  describe("get_available_tokens_for_distribution", async () => {
+    // TODO - add missing code coverage
+  });
+
+  describe("get_available_tokens_5y_vesting", async () => {
+    // TODO - add missing code coverage
   });
 
 });

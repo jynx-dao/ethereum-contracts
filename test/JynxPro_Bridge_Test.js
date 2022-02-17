@@ -477,9 +477,11 @@ contract("JynxPro_Bridge", (accounts) => {
          String(600)
        );
        // Skip to end of distribution period
-       await timeMachine.advanceTimeAndBlock(10000);
+       await timeMachine.advanceTimeAndBlock(86400 * 220);
        // Try to clam
        await jynx_pro_bridge.claim_network_tokens(nonce, sig_string);
+       const pool = await jynx_distribution.network_pool_claimed.call();
+       assert.equal(Math.round(web3.utils.fromWei(pool)/1000)*1000, 10957000);
        await timeMachine.revertToSnapshot(snapshot);
      };
      it("should claim network tokens", async () => {
