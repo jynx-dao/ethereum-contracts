@@ -19,7 +19,7 @@ Generate a code coverage report by executing the command below:
 
 * `truffle run coverage`
 
-The HTML report will be available at `coverage/index.html`.
+The HTML report will be available at `coverage/index.html`
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit)
