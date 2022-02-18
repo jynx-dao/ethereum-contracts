@@ -15,5 +15,9 @@ The unit tests require Ganache to be running with a specific mnemonic (see [scri
 
 * `npm run test`
 
+Generate a code coverage report by executing the command below:
+
+* `truffle run coverage`
+
 ## License
 [MIT](https://choosealicense.com/licenses/mit)
