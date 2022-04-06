@@ -229,13 +229,15 @@ contract JYNX_Distribution is Ownable {
     return available_tokens;
   }
 
-  /// @notice Calculates the tokens available for redemption from a 5-year vesting schedule
+  /// @notice Calculates the tokens available for redemption from n-year vesting schedule
   /// @param total_balance the total tokens in the schedule
   /// @param claimed_balance the tokens already claimed
   /// @return tokens available for redemption
-  function get_available_tokens_5y_vesting(
+  function get_available_tokens_for_n_years(
     uint256 total_balance,
-    uint256 claimed_balance
+    uint256 claimed_balance,
+    uint256 num_years,
+    uint256 days_offset
   ) public view returns (uint256) {
     if(distribution_count == 0) {
       return 0;
@@ -243,8 +245,8 @@ contract JYNX_Distribution is Ownable {
     if(distribution_events[0].end_date > block.timestamp) {
       return 0;
     }
-    uint256 cliff = distribution_events[0].end_date + (86400 * 180);
-    uint256 duration = 86400 * 365 * 5;
+    uint256 cliff = distribution_events[0].end_date + (86400 * days_offset);
+    uint256 duration = 86400 * 365 * num_years;
     uint256 vesting_end = cliff + duration;
     uint256 available_tokens = total_balance - claimed_balance;
     if(block.timestamp < cliff) {
@@ -271,16 +273,20 @@ contract JYNX_Distribution is Ownable {
 
   /// @notice Allows the owner to claim vested treasury tokens
   function claim_treasury_tokens() onlyOwner public onlyInitialized {
-    uint256 available_tokens = get_available_tokens_5y_vesting(treasury, treasury_claimed);
-    treasury_claimed += available_tokens;
-    jynx_token.transfer(owner(), available_tokens);
+    uint256 available_tokens = get_available_tokens_for_n_years(treasury, treasury_claimed, 3, 365);
+    if(available_tokens > 0) {
+      treasury_claimed += available_tokens;
+      jynx_token.transfer(owner(), available_tokens);
+    }
   }
 
   /// @notice Allows the Jynx network to claim vested network tokens
   function claim_network_tokens() public onlyInitialized {
     require(msg.sender == address(jynx_pro_bridge), "only bridge can claim network tokens");
-    uint256 available_tokens = get_available_tokens_5y_vesting(network_pool, network_pool_claimed);
-    network_pool_claimed += available_tokens;
-    jynx_token.transfer(address(jynx_pro_bridge), available_tokens);
+    uint256 available_tokens = get_available_tokens_for_n_years(network_pool, network_pool_claimed, 5, 0);
+    if(available_tokens > 0) {
+      network_pool_claimed += available_tokens;
+      jynx_token.transfer(address(jynx_pro_bridge), available_tokens);
+    }
   }
 }

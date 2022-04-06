@@ -245,8 +245,9 @@ contract("JYNX_Distribution", (accounts) => {
   describe("claim_treasury_tokens", async () => {
     it("should claim treasury tokens", async () => {
       const jynx_distribution = await JYNX_Distribution.deployed();
+      let pool = await jynx_distribution.treasury_claimed.call();
       await jynx_distribution.claim_treasury_tokens();
-      const pool = await jynx_distribution.treasury_claimed.call();
+      pool = await jynx_distribution.treasury_claimed.call();
       assert.equal(web3.utils.fromWei(pool), 0);
     });
   });

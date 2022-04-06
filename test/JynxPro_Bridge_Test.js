@@ -482,7 +482,7 @@ contract("JynxPro_Bridge", (accounts) => {
        // Try to clam
        await jynx_pro_bridge.claim_network_tokens(nonce, sig_string);
        const pool = await jynx_distribution.network_pool_claimed.call();
-       assert.equal(Math.round(web3.utils.fromWei(pool)/1000)*1000, 10957000);
+       assert.equal(Math.round(web3.utils.fromWei(pool)/1000)*1000, 60267000);
        await timeMachine.revertToSnapshot(snapshot);
      };
      it("should claim network tokens", async () => {
