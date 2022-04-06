@@ -22,8 +22,15 @@ contract JYNX_Distribution is Ownable {
   mapping(uint8 => mapping(address => uint256)) public claimed_tokens;
   mapping(uint8 => mapping(address => uint256)) public user_allocations;
   mapping(uint8 => Distribution) public distribution_events;
-  mapping(uint8 => mapping(address => bool)) public distribution_whitelist;
+  mapping(uint8 => mapping(address => Whitelist)) public distribution_whitelist;
+  mapping(bytes => bool) public used_whitelist_codes;
+  mapping(uint256 => bool) public used_nonces;
   uint8 public distribution_count = 0;
+
+  struct Whitelist {
+    uint256 amount;
+    bool is_valid;
+  }
 
   struct Distribution {
     uint256 total_tokens;
@@ -105,6 +112,37 @@ contract JYNX_Distribution is Ownable {
     distribution_count++;
   }
 
+  /// @notice Adds a user to the whitelist of a sale
+  /// @param amount the whitelist amount
+  /// @param id the distribution ID
+  /// @param nonce the nonce
+  /// @param sig valid signature
+  function add_to_whitelist(
+    uint256 amount,
+    uint8 id,
+    uint256 nonce,
+    bytes memory sig
+  ) public {
+    require(distribution_whitelist[id][msg.sender].amount == 0, "already whitelisted");
+    require(!used_whitelist_codes[sig], "whitelist code already used");
+    require(!used_nonces[nonce], "nonce used");
+    bytes memory message = abi.encode(nonce, id, amount);
+    bytes32 message_hash = keccak256(abi.encode(message, msg.sender));
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+    assembly {
+      r := mload(add(sig, 0))
+      s := mload(add(sig, add(0, 32)))
+      v := byte(0, mload(add(sig, add(0, 64))))
+    }
+    address addr = ecrecover(message_hash, v, r, s);
+    require(addr == owner(), "invalid signature");
+    distribution_whitelist[id][msg.sender] = Whitelist(amount, true);
+    used_whitelist_codes[sig] = true;
+    used_nonces[nonce];
+  }
+
   /// @notice Buy tokens from a distribution event
   /// @param id the distribution identifier
   /// @param amount DAI to spend
@@ -116,7 +154,9 @@ contract JYNX_Distribution is Ownable {
     require(distribution_events[id].end_date > block.timestamp, "distribution ended");
     require(distribution_events[id].total_tokens - distribution_events[id].tokens_sold > 0, "sold out");
     if(distribution_events[id].whitelist_end_date > block.timestamp) {
-      require(distribution_whitelist[id][msg.sender], "user not whitelisted");
+      require(distribution_whitelist[id][msg.sender].is_valid, "user not whitelisted");
+      require(distribution_whitelist[id][msg.sender].amount >= amount, "amount exceeds whitelist quantity");
+      distribution_whitelist[id][msg.sender].amount -= amount;
     }
     uint256 token_amount = amount / distribution_events[id].usd_rate;
     user_allocations[id][msg.sender] += token_amount;
