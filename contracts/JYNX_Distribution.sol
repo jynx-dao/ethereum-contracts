@@ -22,12 +22,14 @@ contract JYNX_Distribution is Ownable {
   mapping(uint8 => mapping(address => uint256)) public claimed_tokens;
   mapping(uint8 => mapping(address => uint256)) public user_allocations;
   mapping(uint8 => Distribution) public distribution_events;
+  mapping(uint8 => mapping(address => bool)) public distribution_whitelist;
   uint8 public distribution_count = 0;
 
   struct Distribution {
     uint256 total_tokens;
     uint256 tokens_sold;
     uint256 start_date;
+    uint256 whitelist_end_date;
     uint256 end_date;
     uint256 usd_rate;
     uint256 cliff_timestamp;
@@ -78,6 +80,7 @@ contract JYNX_Distribution is Ownable {
   /// @notice Create a token distribution event
   /// @param total_tokens tokens available to purchase
   /// @param start_date opening timestamp
+  /// @param whitelist_end_date whitelist end timestmap
   /// @param end_date closing timestamp
   /// @param usd_rate the USD price of JYNX
   /// @param cliff_timestamp the cliff applied to vesting
@@ -85,15 +88,19 @@ contract JYNX_Distribution is Ownable {
   function create_distribution(
     uint256 total_tokens,
     uint256 start_date,
+    uint256 whitelist_end_date,
     uint256 end_date,
     uint256 usd_rate,
     uint256 cliff_timestamp,
     uint256 vesting_duration
   ) public onlyOwner onlyInitialized {
     require(end_date > start_date, "cannot end before starting");
+    require(whitelist_end_date > start_date, "whitelist cannot end before starting");
+    require(whitelist_end_date < end_date, "whitelist cannot end after ending");
     require(total_tokens <= community_pool, "not enough tokens left");
-    distribution_events[distribution_count] = Distribution(total_tokens, 0, start_date,
-      end_date, usd_rate, cliff_timestamp, vesting_duration, false);
+    distribution_events[distribution_count] = Distribution(
+      total_tokens, 0, start_date, whitelist_end_date, end_date, usd_rate,
+      cliff_timestamp, vesting_duration, false);
     community_pool -= total_tokens;
     distribution_count++;
   }
@@ -108,6 +115,9 @@ contract JYNX_Distribution is Ownable {
     require(distribution_events[id].start_date < block.timestamp, "distribution not started");
     require(distribution_events[id].end_date > block.timestamp, "distribution ended");
     require(distribution_events[id].total_tokens - distribution_events[id].tokens_sold > 0, "sold out");
+    if(distribution_events[id].whitelist_end_date > block.timestamp) {
+      require(distribution_whitelist[id][msg.sender], "user not whitelisted");
+    }
     uint256 token_amount = amount / distribution_events[id].usd_rate;
     user_allocations[id][msg.sender] += token_amount;
     distribution_events[id].tokens_sold += token_amount;

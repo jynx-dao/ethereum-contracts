@@ -24,6 +24,7 @@ contract("JYNX_Distribution", (accounts) => {
     await jynx_distribution.create_distribution(
       web3.utils.toWei(String(amount)),
       String(ts+60),
+      String(ts+61+diff),
       String(ts+120+diff),
       String(1),
       String(ts+300),

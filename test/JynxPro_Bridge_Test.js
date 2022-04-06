@@ -471,6 +471,7 @@ contract("JynxPro_Bridge", (accounts) => {
        await jynx_distribution.create_distribution(
          web3.utils.toWei(String(amount)),
          String(ts+60),
+         String(ts+90),
          String(ts+120),
          String(1),
          String(ts+300),
